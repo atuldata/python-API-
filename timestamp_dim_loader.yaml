@@ -1,0 +1,11 @@
+ENV : /var/feeds/python/env.yaml
+
+CHECK_COUNT: "select 1 from timestamp_dim where date_sid=%s"
+
+INSERT_NEW_RECORD: "INSERT INTO timestamp_dim(date_sid,datetime) 
+		SELECT %s,ts FROM (SELECT cast('%s' as timestamp) as tm 
+		UNION 
+             	SELECT timestampadd(hour, 23, cast('%s' as timestamp))  as tm) as t 
+             	TIMESERIES ts as '1 hour' OVER (ORDER BY tm)"
+
+LOAD_STATE_VAR: timestamp_dim_last_hour_loaded

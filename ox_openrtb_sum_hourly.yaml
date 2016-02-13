@@ -1,0 +1,188 @@
+#ENV: env.yaml
+
+ENV: /var/feeds/python/env.yaml
+
+ROLLUP_CONFIG: /var/feeds/python/rollup.yaml
+
+#SCHEMA_TO_TABLE_COLUMN_MAP:
+FEED_COLUMNS:
+    datetime                    : utc_timestamp
+    x_platform_id               : x_platform_id
+    p_account                   : publisher_account_nk
+    p_site                      : site_nk
+    p_ad_unit                   : ad_unit_nk
+    p_ad_size                   : p_ad_size
+    a_account                   : advertiser_account_nk
+    a_ext_brand                 : a_ext_brand
+    p_mobl_app_name             : p_mobl_app_name
+    p_site_category_1           : p_site_category_1
+    p_site_category_2           : p_site_category_2
+    p_mobl_sdk_platform         : p_mobl_sdk_platform
+    u_geo_country               : country_code
+    u_os                        : u_os
+    u_os_vers                   : u_os_vers
+    u_device_mfg                : u_device_mfg
+    u_device_name               : u_device_name
+    u_mobl_carrier              : u_mobl_carrier
+    u_mobl_dev_id_is_present    : u_mobl_dev_id_is_present
+    u_geo_data_is_present       : u_geo_data_is_present
+    u_geo_lat_long_is_present   : u_geo_lat_long_is_present
+    u_geo_latlon_src            : u_geo_latlon_src
+    p_mobl_app_bundle           : p_mobl_app_bundle
+    p_mobl_api_framework        : p_mobl_api_framework
+    p_mobl_app_store_url        : p_mobl_app_store_url
+    u_mobl_id_idfs_is_present   : u_mobl_id_idfs_is_present
+    p_display_manager           : p_display_manager
+    u_yob_is_present            : u_yob_is_present
+    u_gen_is_present            : u_gen_is_present
+    u_mobl_nettyp               : u_mobl_nettyp
+    u_income_is_present         : u_income_is_present
+    p_instl_flag                : p_instl_flag
+    a_bid_req_standard          : a_bid_req_standard
+    p_deal_id                   : p_deal_id
+    u_ox_id_is_present          : u_ox_id_is_present
+    b_had_user_inf              : b_had_user_inf
+    u_ox_dnt                    : u_ox_dnt
+    u_ox_lmt                    : u_ox_lmt
+    p_regs_coppa                : p_regs_coppa
+    p_regs_ext_sb586            : p_regs_ext_sb586
+    p_banner_pos_is_atf         : p_banner_pos_is_atf
+    p_segment_data_elig         : p_segment_data_elig
+    x_bidder_elig               : x_bidder_elig
+    requests                    : tot_requests
+    fills                       : tot_fills
+    impression                  : tot_impression
+    billable_impression         : tot_billable_impression
+    a_spend                     : tot_a_spend
+    clicks                      : tot_clicks
+
+
+
+FEED_TMP_TABLE_NAME: tmp_ox_openrtb_sum_hourly
+
+FEED_TMP_TABLE_ORDER_BY_CLAUSE: 'ORDER BY publisher_account_nk, site_nk, ad_unit_nk, advertiser_account_nk'
+FEED_TMP_TABLE_SEGMENTATION_CLAUSE: 'SEGMENTED BY hash(publisher_account_nk, site_nk, ad_unit_nk, advertiser_account_nk) ALL NODES'
+
+FEED_TMP_CHECK_HOUR: "SELECT COUNT(*) FROM tmp_ox_openrtb_sum_hourly WHERE utc_timestamp!=?"
+
+DELETE_EXISTING_HOUR:
+    "DELETE FROM ox_openrtb_sum_hourly_fact 
+      WHERE utc_timestamp=? and utc_date_sid = TO_NUMBER(TO_CHAR(TO_TIMESTAMP(?,'YYYY-MM-DD HH24:MI:SS'), 'YYYYMMDD'))"
+
+GET_MISSING_CARRIER_CODES: 
+        "SELECT distinct u_mobl_carrier FROM tmp_ox_openrtb_sum_hourly left join carrier_dim on carrier_codes=u_mobl_carrier where carrier_codes is null"
+
+GET_SINGLE_CARRIER: 
+        "SELECT carrier_name FROM single_carrier where carrier_code="
+
+INSERT_CARRIER_DIM: 
+        "insert into carrier_dim(carrier_name,carrier_codes,created_datetime,modified_datetime)
+         select ?, ?, ? , ?;"
+
+INSERT_DATA:
+    "INSERT /*+ DIRECT */ INTO ox_openrtb_sum_hourly_fact
+     (  utc_date_sid,
+        utc_timestamp,
+        x_platform_id,
+        publisher_account_nk,
+        site_nk,
+        ad_unit_nk,
+        p_ad_size,
+        advertiser_account_nk,
+        a_ext_brand,
+        p_mobl_app_name,
+        p_site_category_1,
+        p_site_category_2,
+        p_mobl_sdk_platform,
+        country_code,
+        u_os,
+        u_os_vers,
+        u_device_mfg,
+        u_device_name,
+        carrier_sid,
+        u_mobl_dev_id_is_present,
+        u_geo_data_is_present,
+        u_geo_lat_long_is_present,
+        u_geo_latlon_src,
+        p_mobl_app_bundle,
+        p_mobl_api_framework,
+        p_mobl_app_store_url,
+        u_mobl_id_idfs_is_present,
+        p_display_manager,
+        u_yob_is_present,
+        u_gen_is_present,
+        u_mobl_nettyp,
+        u_income_is_present,
+        p_instl_flag,
+        a_bid_req_standard,
+        p_deal_id,
+        u_ox_id_is_present,
+        b_had_user_inf,
+        u_ox_dnt,
+        u_ox_lmt,
+        p_regs_coppa,
+        p_regs_ext_sb586,
+        p_banner_pos_is_atf,
+        p_segment_data_elig,
+        x_bidder_elig,
+        tot_requests,
+        tot_fills,
+        tot_impression,
+        tot_billable_impression,
+        tot_a_spend,
+        tot_clicks
+     )        
+     SELECT 
+        to_number(to_char(utc_timestamp, 'YYYYMMDD')) date_sid,
+        utc_timestamp,
+        x_platform_id,
+        publisher_account_nk,
+        site_nk,
+        ad_unit_nk,
+        p_ad_size,
+        advertiser_account_nk,
+        a_ext_brand,
+        p_mobl_app_name,
+        p_site_category_1,
+        p_site_category_2,
+        p_mobl_sdk_platform,
+        country_code,
+        u_os,
+        u_os_vers,
+        u_device_mfg,
+        u_device_name,
+        carrier_sid,
+        u_mobl_dev_id_is_present,
+        u_geo_data_is_present,
+        u_geo_lat_long_is_present,
+        u_geo_latlon_src,
+        p_mobl_app_bundle,
+        p_mobl_api_framework,
+        p_mobl_app_store_url,
+        u_mobl_id_idfs_is_present,
+        p_display_manager,
+        u_yob_is_present,
+        u_gen_is_present,
+        u_mobl_nettyp,
+        u_income_is_present,
+        p_instl_flag,
+        a_bid_req_standard,
+        p_deal_id,
+        u_ox_id_is_present,
+        b_had_user_inf,
+        u_ox_dnt,
+        u_ox_lmt,
+        p_regs_coppa,
+        p_regs_ext_sb586,
+        p_banner_pos_is_atf,
+        p_segment_data_elig,
+        x_bidder_elig,
+        tot_requests,
+        tot_fills,
+        tot_impression,
+        tot_billable_impression,
+        tot_a_spend/1000000,
+        tot_clicks
+    FROM tmp_ox_openrtb_sum_hourly left join carrier_dim on carrier_codes=isnull(u_mobl_carrier,'')"
+
+LOAD_STATE_VAR: grid_ox_openrtb_sum_hourly_fact_last_hour_loaded
